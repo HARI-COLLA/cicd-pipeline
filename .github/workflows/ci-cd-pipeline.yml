@@ -1,0 +1,55 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  test-build-push:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+
+    - name: Install dependencies and run tests
+      run: |
+        pip install -r requirements.txt
+        python -m pytest test_app.py -v
+
+    - name: Login to Docker Hub
+      uses: docker/login-action@v2
+      with:
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v4
+      with:
+        context: .
+        push: true
+        tags: |
+          ${{ secrets.DOCKERHUB_USERNAME }}/my-docker-app:latest
+          ${{ secrets.DOCKERHUB_USERNAME }}/my-docker-app:${{ github.sha }}
+
+  deploy:
+    needs: test-build-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy to local environment (simulation)
+        run: |
+          echo "🚀 Deployment simulation started for commit ${{ github.sha }}"
+          echo "📦 Image ready to pull: ${{ secrets.DOCKERHUB_USERNAME }}/my-docker-app:${{ github.sha }}"
+          echo "🐳 On a real server, I would now run:"
+          echo "   'docker-compose down && docker-compose up -d'"
+          echo "✅ Deployment simulation complete!"
